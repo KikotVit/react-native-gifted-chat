@@ -14,6 +14,7 @@ import { StylePropType } from './utils'
 
 export interface ComposerProps {
   composerHeight?: number
+  minComposerHeight?: number
   text?: string
   placeholder?: string
   placeholderTextColor?: string
@@ -29,6 +30,7 @@ export interface ComposerProps {
 
 export function Composer ({
   composerHeight = MIN_COMPOSER_HEIGHT,
+  minComposerHeight = MIN_COMPOSER_HEIGHT,
   disableComposer = false,
   keyboardAppearance = 'default',
   multiline = true,
@@ -41,7 +43,12 @@ export function Composer ({
   textInputProps,
   textInputStyle,
 }: ComposerProps): React.ReactElement {
-  const dimensionsRef = useRef<{ width: number, height: number }>()
+  const dimensionsRef = useRef<{ width: number; height: number }>();
+  const needsToAddLine = useRef(false);
+  const currentHeight = useRef(minComposerHeight);
+
+  const lineHeight = textInputStyle.lineHeight || 18
+  const padding = minComposerHeight - lineHeight
 
   const determineInputSizeChange = useCallback(
     (dimensions: { width: number, height: number }) => {
@@ -65,11 +72,71 @@ export function Composer ({
   const handleContentSizeChange = useCallback(
     ({
       nativeEvent: { contentSize },
-    }: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) =>
-      determineInputSizeChange(contentSize),
-    [determineInputSizeChange]
-  )
+    }: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+      const lineCount = Math.ceil((contentSize.height - padding) / lineHeight);
+      if (contentSize.height > currentHeight.current)
+        needsToAddLine.current = true;
+      determineInputSizeChange({
+        height: Math.max(
+          minComposerHeight,
+          minComposerHeight + (lineCount - 1) * lineHeight
+        ),
+        width: contentSize.width || 0,
+      });
+      currentHeight.current = Math.max(
+        minComposerHeight,
+        minComposerHeight + (lineCount - 1) * lineHeight
+      );
+    },
+    [determineInputSizeChange, currentHeight.current]
+  );
 
+  function insertNewlineAtLastSpace(str: string) {
+    if (str.length === 0 || str.endsWith('\n')) return str;
+
+    const lastSpaceIndex = str.lastIndexOf(' ');
+
+    if (lastSpaceIndex !== -1 && str.length - lastSpaceIndex < 12) {
+      return (
+        str.slice(0, lastSpaceIndex) +
+        '\n' +
+        str.slice(lastSpaceIndex + 1)
+      );
+    }
+    return str.slice(0, -1) + '\n' + str.slice(-1);
+  }
+
+  const handleChangeText = (newText: string) => {
+    const newStr = needsToAddLine.current
+      ? insertNewlineAtLastSpace(newText)
+      : newText;
+    if (onTextChanged) onTextChanged(newStr);
+    needsToAddLine.current = false;
+
+    const tmpText = text;
+
+    if (newStr.split('\n').length !== tmpText.split('\n').length) {
+      determineInputSizeChange({
+        height: Math.max(
+          minComposerHeight,
+          minComposerHeight + (newStr.split('\n').length - 1) * lineHeight
+        ),
+        width: dimensionsRef.current?.width || 0,
+      });
+      currentHeight.current = Math.max(
+          minComposerHeight,
+          minComposerHeight + (newStr.split('\n').length - 1) * lineHeight
+      );
+      return;
+    }
+    if (newStr.split('\n').length === 1) {
+      determineInputSizeChange({
+        height: minComposerHeight,
+        width: dimensionsRef.current?.width || 0,
+      });
+      currentHeight.current = minComposerHeight;
+    }
+  };
   return (
     <TextInput
       testID={placeholder}
@@ -80,7 +147,7 @@ export function Composer ({
       multiline={multiline}
       editable={!disableComposer}
       onContentSizeChange={handleContentSizeChange}
-      onChangeText={onTextChanged}
+      onChangeText={handleChangeText}
       style={[
         styles.textInput,
         textInputStyle,
