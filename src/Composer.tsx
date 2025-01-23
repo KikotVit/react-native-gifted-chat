@@ -7,6 +7,7 @@ import {
   TextInputProps,
   NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
+  TextStyle,
 } from 'react-native'
 import { MIN_COMPOSER_HEIGHT, DEFAULT_PLACEHOLDER } from './Constant'
 import Color from './Color'
@@ -19,7 +20,7 @@ export interface ComposerProps {
   placeholder?: string
   placeholderTextColor?: string
   textInputProps?: Partial<TextInputProps>
-  textInputStyle?: TextInputProps['style']
+  textInputStyle?: TextStyle
   textInputAutoFocus?: boolean
   keyboardAppearance?: TextInputProps['keyboardAppearance']
   multiline?: boolean
@@ -43,12 +44,12 @@ export function Composer ({
   textInputProps,
   textInputStyle,
 }: ComposerProps): React.ReactElement {
-  const dimensionsRef = useRef<{ width: number; height: number }>();
-  const needsToAddLine = useRef(false);
-  const currentHeight = useRef(minComposerHeight);
+  const dimensionsRef = useRef<{ width: number, height: number }>()
+  const needsToAddLine = useRef(false)
+  const currentHeight = useRef(minComposerHeight)
 
-  const lineHeight = textInputStyle.lineHeight || 18
-  const padding = minComposerHeight - lineHeight
+  const lineHeight = textInputStyle?.lineHeight || 18
+  const padding = (minComposerHeight ?? 42) - lineHeight
 
   const determineInputSizeChange = useCallback(
     (dimensions: { width: number, height: number }) => {
@@ -73,70 +74,72 @@ export function Composer ({
     ({
       nativeEvent: { contentSize },
     }: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
-      const lineCount = Math.ceil((contentSize.height - padding) / lineHeight);
-      if (contentSize.height > currentHeight.current)
-        needsToAddLine.current = true;
+      const lineCount = Math.ceil((contentSize.height - padding) / lineHeight)
+      if (currentHeight.current !== undefined && contentSize.height > currentHeight.current)
+        needsToAddLine.current = true
       determineInputSizeChange({
         height: Math.max(
-          minComposerHeight,
-          minComposerHeight + (lineCount - 1) * lineHeight
+          (minComposerHeight ?? 42),
+          (minComposerHeight ?? 42) + (lineCount - 1) * lineHeight
         ),
         width: contentSize.width || 0,
-      });
+      })
       currentHeight.current = Math.max(
-        minComposerHeight,
-        minComposerHeight + (lineCount - 1) * lineHeight
-      );
+        (minComposerHeight ?? 42),
+        (minComposerHeight ?? 42) + (lineCount - 1) * lineHeight
+      )
     },
     [determineInputSizeChange, currentHeight.current]
-  );
+  )
 
-  function insertNewlineAtLastSpace(str: string) {
-    if (str.length === 0 || str.endsWith('\n')) return str;
+  function insertNewlineAtLastSpace (str: string) {
+    if (str.length === 0 || str.endsWith('\n'))
+      return str
 
-    const lastSpaceIndex = str.lastIndexOf(' ');
+    const lastSpaceIndex = str.lastIndexOf(' ')
 
-    if (lastSpaceIndex !== -1 && str.length - lastSpaceIndex < 12) {
+    if (lastSpaceIndex !== -1 && str.length - lastSpaceIndex < 12)
       return (
         str.slice(0, lastSpaceIndex) +
         '\n' +
         str.slice(lastSpaceIndex + 1)
-      );
-    }
-    return str.slice(0, -1) + '\n' + str.slice(-1);
+      )
+
+    return str.slice(0, -1) + '\n' + str.slice(-1)
   }
 
   const handleChangeText = (newText: string) => {
     const newStr = needsToAddLine.current
       ? insertNewlineAtLastSpace(newText)
-      : newText;
-    if (onTextChanged) onTextChanged(newStr);
-    needsToAddLine.current = false;
+      : newText
+    if (onTextChanged)
+      onTextChanged(newStr)
+    needsToAddLine.current = false
 
-    const tmpText = text;
+    const tmpText = text
 
     if (newStr.split('\n').length !== tmpText.split('\n').length) {
       determineInputSizeChange({
         height: Math.max(
-          minComposerHeight,
-          minComposerHeight + (newStr.split('\n').length - 1) * lineHeight
+          (minComposerHeight ?? 42),
+          (minComposerHeight ?? 42) + (newStr.split('\n').length - 1) * lineHeight
         ),
         width: dimensionsRef.current?.width || 0,
-      });
+      })
       currentHeight.current = Math.max(
-          minComposerHeight,
-          minComposerHeight + (newStr.split('\n').length - 1) * lineHeight
-      );
-      return;
+        (minComposerHeight ?? 42),
+        (minComposerHeight ?? 42) + (newStr.split('\n').length - 1) * lineHeight
+      )
+      return
     }
     if (newStr.split('\n').length === 1) {
       determineInputSizeChange({
-        height: minComposerHeight,
+        height: (minComposerHeight ?? 42),
         width: dimensionsRef.current?.width || 0,
-      });
-      currentHeight.current = minComposerHeight;
+      })
+      currentHeight.current = (minComposerHeight ?? 42)
     }
-  };
+  }
   return (
     <TextInput
       testID={placeholder}
