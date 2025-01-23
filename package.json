@@ -41,7 +41,8 @@
     "tsc:write": "yarn tsc --project tsconfig.json",
     "tsc:watch": "yarn tsc --watch --noEmit",
     "fresh": "yarn start --reset-cache",
-    "prepare": "yarn husky"
+    "prepare": "yarn husky",
+    "postinstall": "yarn build"
   },
   "lint-staged": {
     "src/*.{json,js,jsx,ts,tsx}": [
